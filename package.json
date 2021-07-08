@@ -5,5 +5,11 @@
   "main": "index.js",
   "repository": "https://github.com/ygongdev/jigsaw-canvas",
   "author": "Yicheng Gong <ygongdev@gmail.com>",
-  "license": "MIT"
+  "license": "MIT",
+  "scripts": {
+    "release": "release-it"
+  },
+  "devDependencies": {
+    "release-it": "^14.10.0"
+  }
 }
