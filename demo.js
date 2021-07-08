@@ -51,30 +51,35 @@ async function main() {
     piece.style.left = `${piece.dataset.left}px`;
     piece.style.top = `${piece.dataset.top}px`;
 
-    piece.addEventListener('mousedown', function(event) {
+    ['mousedown', 'touchstart'].forEach(listener => piece.addEventListener(listener, function(event) {
+      const x = event.clientX || event.touches[0].pageX;
+      const y = event.clientY || event.touches[0].pageY;
+
       isDown = true;
       metadata = {
         idx,
         offset: [
-          piece.offsetLeft - event.clientX,
-          piece.offsetTop - event.clientY
+          piece.offsetLeft - x,
+          piece.offsetTop - y
         ]
       }
-    });
+    }, { passive: false}));
   });
 
-  document.addEventListener('mouseup', function() {
+  ['mouseup', 'touchend'].forEach(listener => document.addEventListener(listener, function() {
     isDown = false;
-  })
+  }, { passive: false }));
 
-  document.addEventListener('mousemove', function(event) {
+  ['mousemove', 'touchmove'].forEach(listener => document.addEventListener(listener, function(event) {
     event.preventDefault();
     if (isDown) {
       const piece = puzzlePieces[metadata.idx];
-      piece.style.left = `${event.clientX + metadata.offset[0]}px`;
-      piece.style.top = `${event.clientY + metadata.offset[1]}px`;
+      const x = event.clientX || event.touches[0].pageX;
+      const y = event.clientY || event.touches[0].pageY;
+      piece.style.left = `${x + metadata.offset[0]}px`;
+      piece.style.top = `${y + metadata.offset[1]}px`;
     }
-  })
+  }, { passive: false }));
 }
 
 main();
