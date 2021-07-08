@@ -1,0 +1,9 @@
+{
+  "name": "jigsaw-canvas",
+  "version": "0.0.1",
+  "description": "A jigsaw piece generator for use with canvas",
+  "main": "index.js",
+  "repository": "https://github.com/ygongdev/jigsaw-canvas",
+  "author": "Yicheng Gong <ygongdev@gmail.com>",
+  "license": "MIT"
+}
