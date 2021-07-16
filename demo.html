@@ -5,9 +5,28 @@
   <script src="demo.js" defer type="module"></script>
 </head>
 <body>
-  <canvas id="original"></canvas>
-  <div id="result">
-
+  <div>
+    <label id="rows-value" for="rows">10</label>
+    <input id="rows" type="range" min="1" max="50" step="1" value="10" />
+  </div>
+  <div>
+    <label id="cols-value" for="cols">10</label>
+    <input id="cols" type="range" min="1" max="50" step="1" value="10" /> 
+  </div>
+  <div>
+    <button id="default">Generate using default image</button>
+  </div>
+  <div>
+    <label for="dynamic">Generate using your image</label>
+    <input id="dynamic" type="file" accept="image/*"  />
+  </div>
+  <div>
+    <button id="hide" data-hidden="false">Toggle Image Background</button>
+  </div>
+  <div id="playground" style="background-color: grey; display: inline-block;">
+    <canvas id="original"></canvas>
+    <div id="result">
+  </div>
   </div>
 </body>
 </html>

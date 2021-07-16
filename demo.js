@@ -1,4 +1,47 @@
 import { generatePuzzle } from './index.js';
+const container = document.getElementById("result");
+const canvas = document.getElementById("original");
+const defaultPuzzle = document.querySelector('#default');
+const dynamicPuzzle = document.querySelector('#dynamic');
+const rows = document.querySelector('#rows');
+const rowsValue= document.querySelector('#rows-value');
+const cols = document.querySelector('#cols');
+const colsValue= document.querySelector('#cols-value');
+const playground = document.querySelector('#playground');
+const hide = document.querySelector('#hide');
+
+defaultPuzzle.addEventListener('click', function() {
+  loadDefault();
+  clear();
+});
+
+dynamicPuzzle.addEventListener('change', function() {
+  const file = this.files && this.files[0];
+  loadDynamic(file);
+  clear();
+});
+
+rows.addEventListener('input', function() {
+  rowsValue.textContent = this.value;
+});
+
+cols.addEventListener('input', function() {
+  colsValue.textContent = this.value;
+});
+
+hide.addEventListener('click', function() {
+  this.dataset.hidden = this.dataset.hidden === "true" ? "false" : "true";
+
+  if (this.dataset.hidden === "true") {
+    canvas.style.opacity = "0%";
+  } else {
+    canvas.style.opacity = "100%";
+  }
+});
+
+function clear() {
+  container.innerHTML = "";
+}
 
 function shuffle(arr) {
   for (let i = arr.length - 1; i >= 0; i--) {
@@ -7,30 +50,44 @@ function shuffle(arr) {
   }
 }
 
-async function main() {
-  let isDown = false;
-  let metadata = {};
-
-  const container = document.getElementById("result");
-  const canvas = document.getElementById("original");
-
+async function loadImage(src) {
   const image  = new Image();
   const loadPromise = new Promise(resolve => {
     image.onload = function() {
       resolve(this);
     }
     image.setAttribute('crossorigin', 'anonymous');
-    image.src = "https://images.unsplash.com/photo-1478827217976-7214a0556393?ixid=MnwxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8&ixlib=rb-1.2.1&auto=format&fit=crop&w=1500&q=80"
+    image.src = src;
   });
 
-	const img = await loadPromise;
+  return await loadPromise;
+}
+
+async function loadDynamic(file) {
+  const img = await loadImage(URL.createObjectURL(file));
+  canvas.width = img.width;
+  canvas.height = img.height;
+  const context = canvas.getContext('2d');
+  context.drawImage(img, 0, 0, canvas.width, canvas.height);
+  await render(img, parseInt(rowsValue.textContent, 10), parseInt(colsValue.textContent, 10));
+}
+
+async function loadDefault() {
+	const img = await loadImage("https://images.unsplash.com/photo-1478827217976-7214a0556393?ixid=MnwxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8&ixlib=rb-1.2.1&auto=format&fit=crop&w=1500&q=80");
 
   canvas.width = img.width;
   canvas.height = img.height;
   const context = canvas.getContext('2d');
   context.drawImage(img, 0, 0, canvas.width, canvas.height);
 
-  const puzzlePieces = await generatePuzzle(img, 10, 10);
+  await render(img, parseInt(rowsValue.textContent, 10), parseInt(colsValue.textContent, 10));
+}
+
+async function render(img, rows, columns) {
+  let isDown = false;
+  let metadata = {};
+
+  const puzzlePieces = await generatePuzzle(img, rows, columns);
   shuffle(puzzlePieces);
   const fragment = document.createDocumentFragment();
   puzzlePieces.forEach((piece, idx) => {
@@ -66,11 +123,11 @@ async function main() {
     }, { passive: false}));
   });
 
-  ['mouseup', 'touchend'].forEach(listener => document.addEventListener(listener, function() {
+  ['mouseup', 'touchend'].forEach(listener => playground.addEventListener(listener, function() {
     isDown = false;
   }, { passive: false }));
 
-  ['mousemove', 'touchmove'].forEach(listener => document.addEventListener(listener, function(event) {
+  ['mousemove', 'touchmove'].forEach(listener => playground.addEventListener(listener, function(event) {
     event.preventDefault();
     if (isDown) {
       const piece = puzzlePieces[metadata.idx];
@@ -81,5 +138,3 @@ async function main() {
     }
   }, { passive: false }));
 }
-
-main();
