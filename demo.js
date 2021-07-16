@@ -18,6 +18,7 @@ defaultPuzzle.addEventListener('click', function() {
 dynamicPuzzle.addEventListener('change', function() {
   const file = this.files && this.files[0];
   loadDynamic(file);
+  this.value = "";
   clear();
 });
 
