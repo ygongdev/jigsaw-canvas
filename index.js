@@ -12,7 +12,24 @@ const JIGSAW_SHAPE = Object.freeze({
   STRAIGHT: 2,
 })
 
-class Piece {  
+class Piece { 
+  shape;
+  containerWidth;
+  containerHeight;
+  width;
+  height;
+  row;
+  col;
+  imageSrc;
+
+  get widthPercentage() {
+    return this.width / this.containerWidth;
+  }
+
+  get heightPercentage() {
+    return this.height / this.containerHeight;
+  }
+
   constructor(shape) {
   	this.shape = shape;
   }
@@ -74,6 +91,8 @@ export async function generatePuzzle(img, rows, columns) {
       piece.height = pieceHeight;
       piece.row = i;
       piece.col = j;
+      piece.containerWidth = newCanvasWidth;
+      piece.containerHeight = newCanvasHeight;
       const shape = {};
       const newCanvas = document.createElement('canvas');
       newCanvas.width = newCanvasWidth;
@@ -198,9 +217,8 @@ export async function generatePuzzle(img, rows, columns) {
         newCanvas.height
       );
       
-      const newImg = new Image();
-      newImg.src = newCanvas.toDataURL();
-      puzzlePieces.push(newImg)
+      piece.imageSrc = newCanvas.toDataURL();
+      puzzlePieces.push(piece);
       // move to top right corner which will be the new top left for the next piece.
       globalX += piece.width;
     }
