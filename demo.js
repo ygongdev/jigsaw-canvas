@@ -1,4 +1,5 @@
 import { generatePuzzle } from './index.js';
+
 const container = document.getElementById("result");
 const canvas = document.getElementById("original");
 const defaultPuzzle = document.querySelector('#default');
@@ -45,7 +46,6 @@ function clear() {
 }
 
 function random(x, y, width, height, containerWidth, containerHeight) {
-  console.log(y, height, (Math.random() * (containerHeight - height)));
   return {
     x: x + (Math.random() * (containerWidth - width)),
     y: y + (Math.random() * (containerHeight - height)),

@@ -1,6 +1,6 @@
 {
   "name": "jigsaw-canvas",
-  "version": "0.0.1",
+  "version": "0.1.0",
   "description": "A jigsaw piece generator for use with canvas",
   "main": "index.js",
   "repository": "https://github.com/ygongdev/jigsaw-canvas",
@@ -11,5 +11,11 @@
   },
   "devDependencies": {
     "release-it": "^14.10.0"
+  },
+  "dependencies": {
+    "express": "^4.17.1",
+    "http": "^0.0.1-security",
+    "socket.io": "^4.1.3",
+    "socket.io-client": "^4.1.3"
   }
 }
