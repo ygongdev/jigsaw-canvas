@@ -35,6 +35,8 @@ class ServerPuzzleState {
 
 const canvas = document.getElementById('original');
 const container = document.getElementById("result");
+const playground = document.querySelector('#playground');
+
 let clientPuzzle;
 let isDown;
 let metadata;
@@ -50,7 +52,6 @@ init().then(puzzle => {
     })
   );
   const serverGameState = new GameState(serverPuzzle);
-  console.log(serverGameState);
   socket.emit('start', serverGameState);
 });
 
@@ -62,7 +63,7 @@ async function init() {
   canvas.width = img.width;
   canvas.height = img.height;
   const context = canvas.getContext('2d');
-  context.drawImage(img, 0, 0, canvas.width, canvas.height);
+  // context.drawImage(img, 0, 0, canvas.width, canvas.height);
 
   // Creating the puzzle pieces
   const puzzle = await generatePuzzle(img, 25, 25);
@@ -75,7 +76,6 @@ async function init() {
     return img;
   });
 
-  // shuffle(puzzlePieces);
   const fragment = document.createDocumentFragment();
   puzzlePieces.forEach(piece => {
     piece.classList.add("puzzle-piece")
@@ -97,12 +97,12 @@ async function init() {
     });
 
     ['mousedown', 'touchstart'].forEach(listener => piece.addEventListener(listener, (event) => {
-      const x = event.clientX || event.touches[0].pageX;
-      const y = event.clientY || event.touches[0].pageY;
-      console.log('touchstart');
       if (isDown) {
         return;
       }
+
+      let x = event.clientX || event.touches[0].pageX;
+      let y = event.clientY || event.touches[0].pageY;
 
       isDown = true;
       metadata = {
@@ -115,21 +115,39 @@ async function init() {
     }, { passive: false}));
   });
 
-  ['mouseup', 'touchend'].forEach(listener => container.addEventListener(listener, function() {
-    console.log('touchend');
+  ['mouseup', 'touchend'].forEach(listener => playground.addEventListener(listener, function() {
     isDown = false;
     metadata = undefined;
   }, { passive: false }));
 
-  ['mousemove', 'touchmove'].forEach(listener => container.addEventListener(listener, (event) => {
+  ['mousemove', 'touchmove'].forEach(listener => playground.addEventListener(listener, (event) => {
     event.preventDefault();
-    console.log(isDown);
     if (isDown) {
       const piece = puzzlePieces[metadata.idx];
       const x = event.clientX || event.touches[0].pageX;
       const y = event.clientY || event.touches[0].pageY;
-      const newX = x + metadata.offset[0];
-      const newY = y + metadata.offset[1];
+      let newX = x + metadata.offset[0];
+      let newY = y + metadata.offset[1];
+
+      // Prevent dragging outside of playground boundary.
+      const playgroundBoundaries = {
+        minX: playground.offsetLeft,
+        maxX: playground.offsetLeft + playground.offsetWidth - piece.offsetWidth,
+        minY: playground.offsetTop,
+        maxY: playground.offsetTop + playground.offsetHeight - piece.offsetHeight,
+      }
+
+      if (newX < playgroundBoundaries.minX) {
+        newX = playgroundBoundaries.minX;
+      } else if (newX > playgroundBoundaries.maxX) {
+        newX = playgroundBoundaries.maxX;
+      }
+
+      if (newY < playgroundBoundaries.minY) {
+        newY = playgroundBoundaries.minY;
+      } else if (newY > playgroundBoundaries.maxY) {
+        newY = playgroundBoundaries.maxY;
+      }
 
       piece.style.left = `${newX}px`;
       piece.style.top = `${newY}px`;
@@ -148,6 +166,7 @@ function render(gameState) {
     const sp = serverPuzzle[i];
     const cp = clientPuzzle[i];
 
+    // If the client state already matches, don't need to
     if (metadata?.idx === i) {
       return;
     }
