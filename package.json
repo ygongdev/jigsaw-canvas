@@ -3,17 +3,23 @@
   "version": "0.2.0",
   "description": "A jigsaw piece generator for use with canvas",
   "main": "index.js",
+  "types": "index.d.ts",
   "repository": "https://github.com/ygongdev/jigsaw-canvas",
   "author": "Yicheng Gong <ygongdev@gmail.com>",
   "license": "MIT",
   "scripts": {
+    "lint": "node ./node_modules/eslint/bin/eslint.js .",
+    "typecheck": "node ./node_modules/typescript/bin/tsc --noEmit",
     "release": "release-it"
   },
   "devDependencies": {
+    "eslint": "^10.6.0",
     "express": "^4.17.1",
     "http": "^0.0.1-security",
     "release-it": "^14.10.0",
-    "socket.io": "^4.1.3"
+    "socket.io": "^4.1.3",
+    "typescript": "^6.0.3",
+    "typescript-eslint": "^8.62.0"
   },
   "dependencies": {}
 }
