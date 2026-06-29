@@ -23,7 +23,7 @@ io.on('connection', client => {
 
 
 function startGameInterval(client) {
-  const intervalId = setInterval(() => {
+  setInterval(() => {
     client.emit('gameState', JSON.stringify(state));
   }, 1000 / 60);
 }

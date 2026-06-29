@@ -1,5 +1,5 @@
 import { loadImage, random } from './util.js';
-import { generatePuzzle } from '../../index.js';
+import { generatePuzzle } from '../../dist/index.js';
 
 const socket = io('http://localhost:3000');
 
@@ -62,7 +62,6 @@ async function init() {
 
   canvas.width = img.width;
   canvas.height = img.height;
-  const context = canvas.getContext('2d');
   // context.drawImage(img, 0, 0, canvas.width, canvas.height);
 
   // Creating the puzzle pieces
@@ -92,7 +91,7 @@ async function init() {
     piece.style.left = `${x}px`;
     piece.style.top = `${y}px`;
 
-    piece.addEventListener('dragstart', (event) => {
+    piece.addEventListener('dragstart', () => {
       return false;
     });
 

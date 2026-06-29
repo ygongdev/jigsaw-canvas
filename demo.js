@@ -1,4 +1,4 @@
-import { generatePuzzle } from './index.js';
+import { generatePuzzle } from './dist/index.js';
 
 const container = document.getElementById("result");
 const canvas = document.getElementById("original");
@@ -107,7 +107,7 @@ async function render(img, rows, columns) {
 
   shuffle(puzzlePieces);
   const fragment = document.createDocumentFragment();
-  puzzlePieces.forEach((piece, idx) => {
+  puzzlePieces.forEach((piece) => {
     piece.classList.add("puzzle-piece")
     fragment.appendChild(piece);
   });

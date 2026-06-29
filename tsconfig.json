@@ -11,8 +11,6 @@
     "skipLibCheck": true
   },
   "include": [
-    "index.d.ts",
-    "index.js",
     "demo.js",
     "multiplayer-demo/**/*.js",
     "src/**/*.ts",

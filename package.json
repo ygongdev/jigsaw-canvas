@@ -3,8 +3,14 @@
   "version": "0.2.0",
   "description": "A jigsaw piece generator for use with canvas",
   "type": "module",
-  "main": "index.js",
-  "types": "index.d.ts",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
   "repository": "https://github.com/ygongdev/jigsaw-canvas",
   "author": "Yicheng Gong <ygongdev@gmail.com>",
   "license": "MIT",
