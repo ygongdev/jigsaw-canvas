@@ -22,7 +22,7 @@ Install dependencies:
 yarn install
 ```
 
-Build the TypeScript source:
+Build the TypeScript source and generated demo JavaScript:
 
 ```sh
 yarn build
@@ -36,7 +36,7 @@ yarn lint
 yarn test
 ```
 
-The package source lives in `src/`. Build output is written to `dist/`, and demos import from `dist/index.js`, so run `yarn build` before opening demos.
+The package source lives in `src/`. Demo sources live beside their generated JavaScript as `.ts` files. Package build output is written to `dist/`, and demos import from `dist/index.js`, so run `yarn build` before opening demos.
 
 ## Single Player Demo
 

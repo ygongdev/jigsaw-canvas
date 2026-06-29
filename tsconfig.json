@@ -12,7 +12,9 @@
   },
   "include": [
     "demo.js",
+    "demo.ts",
     "multiplayer-demo/**/*.js",
+    "multiplayer-demo/**/*.ts",
     "src/**/*.ts",
     "test/**/*.ts",
     "tests/**/*.ts"

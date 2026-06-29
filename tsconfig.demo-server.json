@@ -1,0 +1,17 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "allowJs": false,
+    "checkJs": false,
+    "declaration": false,
+    "lib": ["ES2020"],
+    "module": "Node16",
+    "moduleResolution": "Node16",
+    "noEmit": false,
+    "outDir": "multiplayer-demo/server",
+    "rootDir": "multiplayer-demo/server",
+    "sourceMap": false
+  },
+  "include": ["multiplayer-demo/server/**/*.ts"],
+  "exclude": ["node_modules"]
+}

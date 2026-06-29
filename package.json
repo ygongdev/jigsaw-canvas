@@ -20,10 +20,12 @@
   "author": "Yicheng Gong <ygongdev@gmail.com>",
   "license": "MIT",
   "scripts": {
-    "build": "node ./node_modules/typescript/bin/tsc -p tsconfig.build.json",
+    "build": "yarn build:lib && yarn build:demos",
+    "build:demos": "node ./node_modules/typescript/bin/tsc -p tsconfig.demos.json && node ./node_modules/typescript/bin/tsc -p tsconfig.demo-server.json",
+    "build:lib": "node ./node_modules/typescript/bin/tsc -p tsconfig.build.json",
     "lint": "node ./node_modules/eslint/bin/eslint.js .",
-    "prepack": "yarn build",
-    "test": "node ./node_modules/typescript/bin/tsc -p tsconfig.build.json && node --test tests/*.test.mjs",
+    "prepack": "yarn build:lib",
+    "test": "yarn build:lib && node --test tests/*.test.mjs",
     "typecheck": "node ./node_modules/typescript/bin/tsc --noEmit",
     "release": "release-it"
   },

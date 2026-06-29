@@ -4,8 +4,10 @@ const browserGlobals = {
   console: "readonly",
   document: "readonly",
   Image: "readonly",
+  HTMLImageElement: "readonly",
   URL: "readonly",
   requestAnimationFrame: "readonly",
+  cancelAnimationFrame: "readonly",
   setInterval: "readonly",
   clearInterval: "readonly",
 };
@@ -96,19 +98,20 @@ export default tseslint.config(
     },
   },
   {
-    files: ["multiplayer-demo/client/**/*.js"],
+    files: ["multiplayer-demo/client/**/*.{js,ts}"],
     languageOptions: {
       globals: socketIoClientGlobals,
     },
   },
   {
-    files: ["multiplayer-demo/server/**/*.js"],
+    files: ["multiplayer-demo/server/**/*.{js,ts}"],
     languageOptions: {
       sourceType: "commonjs",
       globals: nodeGlobals,
     },
     rules: {
       "@typescript-eslint/no-require-imports": "off",
+      "no-redeclare": "off",
     },
   },
   {
@@ -119,7 +122,7 @@ export default tseslint.config(
     },
   },
   {
-    files: ["src/**/*.ts"],
+    files: ["**/*.ts"],
     rules: {
       "no-undef": "off",
     },
