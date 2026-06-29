@@ -2,6 +2,7 @@
   "name": "jigsaw-canvas",
   "version": "0.2.0",
   "description": "A jigsaw piece generator for use with canvas",
+  "type": "module",
   "main": "index.js",
   "types": "index.d.ts",
   "repository": "https://github.com/ygongdev/jigsaw-canvas",
@@ -10,6 +11,7 @@
   "scripts": {
     "build": "node ./node_modules/typescript/bin/tsc -p tsconfig.build.json",
     "lint": "node ./node_modules/eslint/bin/eslint.js .",
+    "test": "node ./node_modules/typescript/bin/tsc -p tsconfig.build.json && node --test tests/*.test.mjs",
     "typecheck": "node ./node_modules/typescript/bin/tsc --noEmit",
     "release": "release-it"
   },
