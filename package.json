@@ -8,6 +8,7 @@
   "author": "Yicheng Gong <ygongdev@gmail.com>",
   "license": "MIT",
   "scripts": {
+    "build": "node ./node_modules/typescript/bin/tsc -p tsconfig.build.json",
     "lint": "node ./node_modules/eslint/bin/eslint.js .",
     "typecheck": "node ./node_modules/typescript/bin/tsc --noEmit",
     "release": "release-it"

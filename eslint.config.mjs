@@ -117,5 +117,11 @@ export default tseslint.config(
       "no-undef": "off",
       "@typescript-eslint/no-unused-vars": "off",
     },
+  },
+  {
+    files: ["src/**/*.ts"],
+    rules: {
+      "no-undef": "off",
+    },
   }
 );
