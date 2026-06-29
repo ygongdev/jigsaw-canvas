@@ -1,26 +1,114 @@
 # jigsaw-canvas
-A jigsaw puzzle generator for HTMLCanvas
+
+A jigsaw puzzle generator for HTML Canvas.
 
 This library is still unstable.
 
-# API
-`generatePuzzle(image, rows, columns)` returns an array of `rows`X`columns` puzzle pieces based off `image`.
+## API
 
-# Demo
-[Demo](https://ygongdev.github.io/jigsaw-canvas/demo)
+```js
+import { generatePuzzle } from "jigsaw-canvas";
 
-# Multiplayer Demo (Local Build)
+const pieces = await generatePuzzle(image, rows, columns);
+```
 
-## Install
+`generatePuzzle(image, rows, columns)` returns an array of `rows * columns` puzzle pieces based on `image`.
+
+## Development
+
+Install dependencies:
+
+```sh
+yarn install
+```
+
+Build the TypeScript source:
+
+```sh
+yarn build
+```
+
+Run all checks:
+
+```sh
+yarn typecheck
+yarn lint
+yarn test
+```
+
+The package source lives in `src/`. Build output is written to `dist/`, and demos import from `dist/index.js`, so run `yarn build` before opening demos.
+
+## Single Player Demo
+
 1. `yarn install`
+2. `yarn build`
+3. Serve the repository root.
+4. Open `demo.html`.
 
-## Start client server
-1. Make sure you're at the `jigsaw-canvas` root directory
-2. `npx live-server --host=localhost`
-3. Navigate to `localhost:<port>/multiplayer-demo/client` in the browser. `<port>` is whatever the `live-server` is running on, e.g `8080`
+For example:
 
-## Start backend server
-1. `cd multiplayer-demo/server`
-2. `npx nodemon server.js`
+```sh
+npx live-server --host=localhost
+```
 
-Open another browser with the same url and you should see real time sync when moving pieces.
+Then open `http://localhost:<port>/demo.html`.
+
+## Multiplayer Demo
+
+Install and build from the repository root:
+
+```sh
+yarn install
+yarn build
+```
+
+Start the client server from the repository root:
+
+```sh
+npx live-server --host=localhost
+```
+
+Open `http://localhost:<port>/multiplayer-demo/client` in a browser.
+
+Start the backend server in another terminal:
+
+```sh
+cd multiplayer-demo/server
+npx nodemon server.js
+```
+
+Open the same client URL in another browser tab. Moving pieces in one tab should sync to the other.
+
+## Release
+
+Before releasing, run:
+
+```sh
+yarn typecheck
+yarn lint
+yarn test
+yarn build
+```
+
+Verify the npm package contents:
+
+```sh
+npm pack --dry-run
+```
+
+The published package is limited by `package.json` `files` and should contain only:
+
+- `dist/`
+- `README.md`
+- `LICENSE`
+- `package.json`
+
+Demos, tests, TypeScript source, and development config are intentionally excluded from the release package.
+
+Create a release:
+
+```sh
+yarn release
+```
+
+`prepack` runs `yarn build`, so `dist/` is regenerated before packing or publishing.

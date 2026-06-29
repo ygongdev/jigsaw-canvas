@@ -11,12 +11,18 @@
       "import": "./dist/index.js"
     }
   },
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE"
+  ],
   "repository": "https://github.com/ygongdev/jigsaw-canvas",
   "author": "Yicheng Gong <ygongdev@gmail.com>",
   "license": "MIT",
   "scripts": {
     "build": "node ./node_modules/typescript/bin/tsc -p tsconfig.build.json",
     "lint": "node ./node_modules/eslint/bin/eslint.js .",
+    "prepack": "yarn build",
     "test": "node ./node_modules/typescript/bin/tsc -p tsconfig.build.json && node --test tests/*.test.mjs",
     "typecheck": "node ./node_modules/typescript/bin/tsc --noEmit",
     "release": "release-it"
