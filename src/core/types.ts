@@ -11,8 +11,16 @@ export type JigsawEdgeName = "TOP" | "RIGHT" | "BOTTOM" | "LEFT";
 
 export type PieceShape = Record<JigsawEdgeName, JigsawShapeValue>;
 
+export interface PieceMargins {
+  top: number;
+  right: number;
+  bottom: number;
+  left: number;
+}
+
 export interface PuzzlePieceLayout {
   shape: PieceShape;
+  margins: PieceMargins;
   containerWidth: number;
   containerHeight: number;
   width: number;
