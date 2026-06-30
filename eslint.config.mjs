@@ -30,7 +30,7 @@ const nodeGlobals = {
 
 export default tseslint.config(
   {
-    ignores: ["node_modules/**", "dist/**", "coverage/**"],
+    ignores: ["node_modules/**", "dist/**", "demo-dist/**", "coverage/**"],
   },
   ...tseslint.configs.recommended,
   {

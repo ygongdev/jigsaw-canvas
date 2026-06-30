@@ -1,4 +1,4 @@
-import { generatePuzzle } from "./dist/index.js";
+import { generatePuzzle } from "./src/index";
 
 interface DragState {
   frameId: number;

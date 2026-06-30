@@ -1,5 +1,5 @@
-import { generatePuzzle } from "../../dist/index.js";
-import { loadImage, random } from "./util.js";
+import { generatePuzzle } from "../../src/index";
+import { loadImage, random } from "./util";
 
 interface MovePayload {
   idx: number;

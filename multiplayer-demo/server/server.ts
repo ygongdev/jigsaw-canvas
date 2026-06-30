@@ -23,15 +23,15 @@ interface SocketServer {
   on(event: "connection", handler: (client: SocketClient) => void): void;
 }
 
-declare const require: (
-  name: "socket.io"
-) => (
+type SocketServerFactory = (
   port: number,
   options: { cors: { origin: string[] } }
 ) => SocketServer;
+
 declare function setInterval(handler: () => void, timeout: number): unknown;
 
-const io = require("socket.io")(3000, {
+const createSocketServer = require("socket.io") as SocketServerFactory;
+const io = createSocketServer(3000, {
   cors: {
     origin: ["http://localhost:8080"],
   },

@@ -11,13 +11,12 @@
     "skipLibCheck": true
   },
   "include": [
-    "demo.js",
     "demo.ts",
-    "multiplayer-demo/**/*.js",
-    "multiplayer-demo/**/*.ts",
+    "multiplayer-demo/client/**/*.ts",
     "src/**/*.ts",
     "test/**/*.ts",
-    "tests/**/*.ts"
+    "tests/**/*.ts",
+    "*.config.ts"
   ],
-  "exclude": ["node_modules", "dist"]
+  "exclude": ["node_modules", "dist", "demo-dist"]
 }

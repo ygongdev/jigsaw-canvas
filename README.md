@@ -22,7 +22,7 @@ Install dependencies:
 yarn install
 ```
 
-Build the TypeScript source and generated demo JavaScript:
+Build the package and demo outputs:
 
 ```sh
 yarn build
@@ -36,22 +36,21 @@ yarn lint
 yarn test
 ```
 
-The package source lives in `src/`. Demo sources live beside their generated JavaScript as `.ts` files. Package build output is written to `dist/`, and demos import from `dist/index.js`, so run `yarn build` before opening demos.
+The package source lives in `src/`. Demo source files stay as TypeScript. Package output is written to `dist/`, and bundled demo output is written to `demo-dist/`.
 
 ## Single Player Demo
 
 1. `yarn install`
-2. `yarn build`
-3. Serve the repository root.
-4. Open `demo.html`.
+2. `yarn build:lib`
+3. `yarn dev:demo`
 
-For example:
+Then open the local URL printed by Vite.
+
+To build the static demo:
 
 ```sh
-npx live-server --host=localhost
+yarn build:demo
 ```
-
-Then open `http://localhost:<port>/demo.html`.
 
 ## Multiplayer Demo
 
@@ -62,19 +61,19 @@ yarn install
 yarn build
 ```
 
-Start the client server from the repository root:
+Start the client dev server from the repository root:
 
 ```sh
-npx live-server --host=localhost
+yarn dev:multiplayer-client
 ```
 
-Open `http://localhost:<port>/multiplayer-demo/client` in a browser.
+Open `http://localhost:8080` in a browser.
 
 Start the backend server in another terminal:
 
 ```sh
-cd multiplayer-demo/server
-npx nodemon server.js
+yarn build:multiplayer-server
+yarn start:multiplayer-server
 ```
 
 Open the same client URL in another browser tab. Moving pieces in one tab should sync to the other.
@@ -111,4 +110,4 @@ Create a release:
 yarn release
 ```
 
-`prepack` runs `yarn build`, so `dist/` is regenerated before packing or publishing.
+`prepack` runs `yarn build:lib`, so `dist/` is regenerated before packing or publishing.
