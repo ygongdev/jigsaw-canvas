@@ -119,8 +119,8 @@ async function init(): Promise<HTMLImageElement[]> {
   const puzzlePieces = puzzle.map((p) => {
     const img = new Image();
     img.src = p.imageSrc;
-    img.width = p.width;
-    img.height = p.height;
+    img.width = p.containerWidth;
+    img.height = p.containerHeight;
     img.className = "unselectable";
     return img;
   });
