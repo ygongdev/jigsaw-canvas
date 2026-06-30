@@ -1,46 +1,75 @@
 <!DOCTYPE html>
 <head>
-  <title>Jigsaw Puzzle Demo</title>
+  <title>Jigsaw Canvas Demo</title>
+  <link rel="stylesheet" href="./demo.css" />
   <script src="./demo.ts" defer type="module"></script>
 </head>
 <body>
-  <div>
-    <h2>Controls</h2>
-    <div>
-      <h3>Rows</h3>
-      <label id="rows-value" for="rows">10</label>
-      <input id="rows" type="range" min="1" max="50" step="1" value="10" />
-    </div>
-    <div>
-      <h3>Columns</h3>
-      <label id="cols-value" for="cols">10</label>
-      <input id="cols" type="range" min="1" max="50" step="1" value="10" /> 
-    </div>
-    <div>
-      <h3>Toggles (AFTER you generate)</h3>
-      <button id="hide" data-hidden="false">Toggle Image Background</button>
-    </div>
-  </div>
-
-  <div>
-    <h3>Generation Options</h3>
-    <div>
-      <button id="default">Generate using default image</button>
-    </div>
-    <div>
-      <p>Or</p>
-    </div>
-    <div>
-      <label for="dynamic">Generate using your own image</label>
-      <div>
-        <input id="dynamic" type="file" accept="image/*"  />
+  <main class="app-shell">
+    <section class="toolbar" aria-label="Puzzle controls">
+      <div class="field">
+        <label for="renderer">Renderer</label>
+        <select id="renderer">
+          <option value="canvas2d-blob">Canvas2D Blob URL</option>
+          <option value="canvas2d-data">Canvas2D Data URL</option>
+          <option value="webgpu-blob">WebGPU Blob URL</option>
+          <option value="webgpu-texture">WebGPU Texture</option>
+        </select>
       </div>
-    </div>
-  </div>
 
-  <div id="playground" style="background-color: grey; display: inline-block;">
-    <canvas id="original"></canvas>
-    <div id="result"></div>
-  </div>
+      <div class="field range-field">
+        <label id="rows-value" for="rows">Rows: 8</label>
+        <input id="rows" type="range" min="1" max="50" step="1" value="8" />
+      </div>
+
+      <div class="field range-field">
+        <label id="cols-value" for="cols">Columns: 8</label>
+        <input id="cols" type="range" min="1" max="50" step="1" value="8" />
+      </div>
+
+      <div class="actions">
+        <button id="generate" type="button">Generate</button>
+        <button id="default" type="button">Default Image</button>
+        <label class="file-action" for="dynamic">Image File</label>
+        <input id="dynamic" type="file" accept="image/*" />
+        <button id="hide" type="button" data-hidden="false">Hide Source</button>
+        <button id="clear" type="button">Clear</button>
+      </div>
+
+      <div id="status" class="progress-panel" role="status" aria-live="polite">
+        <div class="progress-line">
+          <span class="progress-label">Status</span>
+          <span id="status-message" class="progress-value"></span>
+        </div>
+        <progress id="generation-progress" value="0" max="1"></progress>
+        <div class="progress-line">
+          <span class="progress-label">Progress</span>
+          <span id="progress-percent" class="progress-value">-</span>
+        </div>
+        <div class="progress-line">
+          <span class="progress-label">Pieces</span>
+          <span id="progress-pieces" class="progress-value">-</span>
+        </div>
+        <div class="progress-line">
+          <span class="progress-label">Piece</span>
+          <span id="progress-piece" class="progress-value">-</span>
+        </div>
+        <div class="progress-line">
+          <span class="progress-label">Elapsed</span>
+          <span id="progress-elapsed" class="progress-value">-</span>
+        </div>
+      </div>
+    </section>
+
+    <section class="workspace" aria-label="Puzzle workspace">
+      <div class="source-panel">
+        <canvas id="original"></canvas>
+      </div>
+      <div id="playground" class="playground">
+        <div id="result"></div>
+        <canvas id="gpu-result"></canvas>
+      </div>
+    </section>
+  </main>
 </body>
 </html>
