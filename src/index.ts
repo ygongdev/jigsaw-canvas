@@ -9,5 +9,21 @@ export {
   type PuzzleLayout,
   type PuzzlePieceLayout,
   type RenderedPuzzlePiece,
+  type PieceMargins,
 } from "./core/types.js";
-export { generatePuzzleCanvas2D as generatePuzzle } from "./renderers/canvas2d.js";
+export {
+  generatePuzzleCanvas2D as generatePuzzle,
+  generatePuzzleCanvas2D,
+  type GeneratePuzzleOptions,
+  type PuzzleGenerationProgress,
+  type PuzzleImageOutput,
+} from "./renderers/canvas2d.js";
+export { revokePuzzleImageSource } from "./renderers/encoding.js";
+export {
+  generatePuzzleWebGPU,
+  generatePuzzleWebGPUTextures,
+  isWebGPUSupported,
+  type GeneratePuzzleWebGPUOptions,
+  type GeneratePuzzleWebGPUTextureOptions,
+  type WebGPUPuzzlePiece,
+} from "./renderers/webgpu.js";
