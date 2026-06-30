@@ -1,5 +1,10 @@
 # jigsaw-canvas
 
+[![npm version](https://img.shields.io/npm/v/jigsaw-canvas)](https://www.npmjs.com/package/jigsaw-canvas)
+[![npm downloads](https://img.shields.io/npm/dm/jigsaw-canvas)](https://www.npmjs.com/package/jigsaw-canvas)
+[![CI](https://github.com/ygongdev/jigsaw-canvas/actions/workflows/deploy.yml/badge.svg)](https://github.com/ygongdev/jigsaw-canvas/actions/workflows/deploy.yml)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://github.com/ygongdev/jigsaw-canvas/blob/main/LICENSE)
+
 A jigsaw puzzle generator for Canvas2D and WebGPU.
 
 This library is still unstable.
