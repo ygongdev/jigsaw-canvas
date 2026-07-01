@@ -4,10 +4,15 @@ import {
   generatePuzzleWebGPUTextures,
   isWebGPUSupported,
   revokePuzzleImageSource,
+  canPlacePiece,
+  type ConnectorStyle,
   type GeneratePuzzleOptions,
+  type PlacedPiece,
   type PuzzleGenerationProgress,
   type RenderedPuzzlePiece,
   type WebGPUPuzzlePiece,
+  findPhysicalSnapCandidate,
+  hitTestPiece,
 } from "./src/index";
 
 type RendererMode =
@@ -21,7 +26,9 @@ interface DragState {
   piece: HTMLImageElement;
   pointerId: number;
   startLeft: number;
+  startPosition: Point;
   startTop: number;
+  startZone: PieceZone;
   startX: number;
   startY: number;
   translateX: number;
@@ -33,12 +40,20 @@ interface Point {
   y: number;
 }
 
+type PieceZone = "board" | "tray";
+
+interface DomPieceState {
+  piece: RenderedPuzzlePiece;
+  zone: PieceZone;
+}
+
 interface TextureSprite {
   bindGroup: GPUBindGroup;
   piece: WebGPUPuzzlePiece;
   uniformBuffer: GPUBuffer;
   x: number;
   y: number;
+  zone: PieceZone;
 }
 
 interface TextureDragState {
@@ -46,6 +61,9 @@ interface TextureDragState {
   offsetY: number;
   pointerId: number;
   sprite: TextureSprite;
+  startX: number;
+  startY: number;
+  startZone: PieceZone;
 }
 
 const DEFAULT_IMAGE =
@@ -54,12 +72,19 @@ const GPU_BUFFER_USAGE = {
   COPY_DST: 8,
   UNIFORM: 64,
 } as const;
+const SNAP_TOLERANCE = 24;
+const TRAY_GAP = 16;
+const TRAY_WIDTH = 320;
 
 const container = getElement<HTMLDivElement>("#result");
 const playground = getElement<HTMLDivElement>("#playground");
+const solveBoard = getElement<HTMLDivElement>("#solve-board");
+const pieceTray = getElement<HTMLDivElement>("#piece-tray");
+const sourcePreview = getElement<HTMLDivElement>("#source-preview");
 const gpuCanvas = getElement<HTMLCanvasElement>("#gpu-result");
 const canvas = getElement<HTMLCanvasElement>("#original");
 const renderer = getElement<HTMLSelectElement>("#renderer");
+const connectorStyle = getElement<HTMLSelectElement>("#connector-style");
 const generateButton = getElement<HTMLButtonElement>("#generate");
 const defaultPuzzle = getElement<HTMLButtonElement>("#default");
 const dynamicPuzzle = getElement<HTMLInputElement>("#dynamic");
@@ -78,6 +103,7 @@ const progressElapsed = getElement<HTMLSpanElement>("#progress-elapsed");
 
 let activeDrag: DragState | undefined;
 let currentImage: HTMLImageElement | undefined;
+let domPieceByElement = new WeakMap<HTMLImageElement, DomPieceState>();
 let isGenerating = false;
 let textureRenderer: TexturePreviewRenderer | undefined;
 
@@ -106,6 +132,12 @@ renderer.addEventListener("change", () => {
   }
 });
 
+connectorStyle.addEventListener("change", () => {
+  if (!isGenerating && currentImage) {
+    setStatus("Connector style changed. Press Generate.");
+  }
+});
+
 rows.addEventListener("input", function () {
   rowsValue.textContent = `Rows: ${this.value}`;
 });
@@ -114,12 +146,10 @@ cols.addEventListener("input", function () {
   colsValue.textContent = `Columns: ${this.value}`;
 });
 
-hide.addEventListener("click", function () {
-  this.dataset.hidden = this.dataset.hidden === "true" ? "false" : "true";
-  const hidden = this.dataset.hidden === "true";
-  canvas.style.opacity = hidden ? "0" : "1";
-  this.textContent = hidden ? "Show Source" : "Hide Source";
-});
+hide.addEventListener("pointerenter", showSourcePreview);
+hide.addEventListener("pointerleave", hideSourcePreview);
+hide.addEventListener("focus", showSourcePreview);
+hide.addEventListener("blur", hideSourcePreview);
 
 clearButton.addEventListener("click", clear);
 
@@ -148,15 +178,37 @@ function getElement<T extends HTMLElement>(selector: string): T {
  */
 function clear(): void {
   container.querySelectorAll<HTMLImageElement>("img").forEach((piece) => {
-    revokePuzzleImageSource(piece.src);
+    const state = domPieceByElement.get(piece);
+    if (state) {
+      revokePuzzleImageSource(state.piece.imageSrc);
+    }
   });
   container.innerHTML = "";
+  domPieceByElement = new WeakMap();
   container.classList.remove("active");
   gpuCanvas.classList.remove("active");
   textureRenderer?.clear();
   activeDrag = undefined;
   setStatus("");
   resetProgress();
+}
+
+/**
+ * Shows the source image preview.
+ *
+ * @returns Nothing.
+ */
+function showSourcePreview(): void {
+  sourcePreview.classList.add("visible");
+}
+
+/**
+ * Hides the source image preview.
+ *
+ * @returns Nothing.
+ */
+function hideSourcePreview(): void {
+  sourcePreview.classList.remove("visible");
 }
 
 /**
@@ -317,12 +369,20 @@ async function generateCurrentPuzzle(): Promise<void> {
  * @returns Nothing.
  */
 function syncBoardSize(img: HTMLImageElement): void {
-  container.style.width = `${img.width}px`;
-  container.style.height = `${img.height}px`;
-  gpuCanvas.width = img.width;
-  gpuCanvas.height = img.height;
-  playground.style.width = `${img.width}px`;
-  playground.style.height = `${img.height}px`;
+  const playgroundWidth = img.width + TRAY_GAP + TRAY_WIDTH;
+  const playgroundHeight = Math.max(img.height, 520);
+
+  container.style.width = `${playgroundWidth}px`;
+  container.style.height = `${playgroundHeight}px`;
+  solveBoard.style.width = `${img.width}px`;
+  solveBoard.style.height = `${img.height}px`;
+  pieceTray.style.left = `${img.width + TRAY_GAP}px`;
+  pieceTray.style.width = `${TRAY_WIDTH}px`;
+  pieceTray.style.height = `${playgroundHeight}px`;
+  gpuCanvas.width = playgroundWidth;
+  gpuCanvas.height = playgroundHeight;
+  playground.style.width = `${playgroundWidth}px`;
+  playground.style.height = `${playgroundHeight}px`;
 }
 
 /**
@@ -343,6 +403,7 @@ async function renderImageSourcePuzzle(
   const label = getRendererLabel(mode);
   const progress = createProgressHandler(label);
   const options: GeneratePuzzleOptions = {
+    connectorStyle: connectorStyle.value as ConnectorStyle,
     imageOutput: mode === "canvas2d-data" ? "data-url" : "blob-url",
     onProgress: progress.onProgress,
   };
@@ -380,6 +441,7 @@ async function renderTexturePuzzle(
   textureRenderer ??= await TexturePreviewRenderer.create(gpuCanvas);
   const progress = createProgressHandler("WebGPU textures");
   const pieces = await generatePuzzleWebGPUTextures(img, rowCount, columnCount, {
+    connectorStyle: connectorStyle.value as ConnectorStyle,
     device: textureRenderer.device,
     onProgress: progress.onProgress,
   });
@@ -427,40 +489,42 @@ function renderDraggableImages(puzzle: RenderedPuzzlePiece[]): void {
     img.src = p.imageSrc;
     img.width = p.containerWidth;
     img.height = p.containerHeight;
-    return img;
+    domPieceByElement.set(img, { piece: p, zone: "tray" });
+    return { element: img, piece: p };
   });
 
   shuffle(puzzlePieces);
 
   const fragment = document.createDocumentFragment();
-  puzzlePieces.forEach((piece) => {
-    piece.classList.add("puzzle-piece");
-    fragment.appendChild(piece);
+  puzzlePieces.forEach(({ element }) => {
+    element.classList.add("puzzle-piece");
+    fragment.appendChild(element);
   });
 
   container.appendChild(fragment);
 
-  puzzlePieces.forEach((piece, idx) => {
-    piece.dataset.index = `${idx}`;
-    piece.style.position = "absolute";
-    piece.style.touchAction = "none";
+  const trayBounds = getTrayBounds();
+  puzzlePieces.forEach(({ element, piece }) => {
+    element.dataset.index = `${piece.index}`;
+    element.style.position = "absolute";
+    element.style.touchAction = "none";
 
     const { x, y } = random(
-      0,
-      0,
-      piece.width,
-      piece.height,
-      canvas.width,
-      canvas.height
+      trayBounds.x,
+      trayBounds.y,
+      piece.containerWidth,
+      piece.containerHeight,
+      trayBounds.width,
+      trayBounds.height
     );
 
-    piece.style.left = `${x}px`;
-    piece.style.top = `${y}px`;
+    element.style.left = `${x}px`;
+    element.style.top = `${y}px`;
 
-    piece.addEventListener("pointerdown", startDrag);
-    piece.addEventListener("pointermove", moveDrag);
-    piece.addEventListener("pointerup", endDrag);
-    piece.addEventListener("pointercancel", endDrag);
+    element.addEventListener("pointerdown", startDrag);
+    element.addEventListener("pointermove", moveDrag);
+    element.addEventListener("pointerup", endDrag);
+    element.addEventListener("pointercancel", endDrag);
   });
 }
 
@@ -473,11 +537,17 @@ function renderDraggableImages(puzzle: RenderedPuzzlePiece[]): void {
 function startDrag(event: PointerEvent): void {
   event.preventDefault();
 
-  const piece = event.currentTarget;
-  if (!(piece instanceof HTMLImageElement)) {
+  const piece = findDomPieceAtPoint(event);
+  if (!piece) {
     return;
   }
 
+  const state = domPieceByElement.get(piece);
+  if (!state) {
+    return;
+  }
+
+  container.appendChild(piece);
   piece.setPointerCapture(event.pointerId);
   piece.style.willChange = "transform";
 
@@ -486,12 +556,36 @@ function startDrag(event: PointerEvent): void {
     piece,
     pointerId: event.pointerId,
     startLeft: parseFloat(piece.style.left) || 0,
+    startPosition: getElementPosition(piece),
     startTop: parseFloat(piece.style.top) || 0,
+    startZone: state.zone,
     startX: event.clientX,
     startY: event.clientY,
     translateX: 0,
     translateY: 0,
   };
+}
+
+/**
+ * Finds the topmost DOM piece whose outline contains the pointer.
+ *
+ * @param event - Pointer event.
+ * @returns Hit puzzle image, when one exists.
+ */
+function findDomPieceAtPoint(event: PointerEvent): HTMLImageElement | undefined {
+  for (const element of document.elementsFromPoint(event.clientX, event.clientY)) {
+    if (!(element instanceof HTMLImageElement)) {
+      continue;
+    }
+
+    const state = domPieceByElement.get(element);
+
+    if (state && hitTestPiece(state.piece, getImageLocalPoint(element, event))) {
+      return element;
+    }
+  }
+
+  return undefined;
 }
 
 /**
@@ -543,10 +637,9 @@ function endDrag(event: PointerEvent): void {
     cancelAnimationFrame(activeDrag.frameId);
   }
 
-  activeDrag.piece.style.left = `${
-    activeDrag.startLeft + activeDrag.translateX
-  }px`;
-  activeDrag.piece.style.top = `${activeDrag.startTop + activeDrag.translateY}px`;
+  const piece = activeDrag.piece;
+  piece.style.left = `${activeDrag.startLeft + activeDrag.translateX}px`;
+  piece.style.top = `${activeDrag.startTop + activeDrag.translateY}px`;
   activeDrag.piece.style.transform = "";
   activeDrag.piece.style.willChange = "";
 
@@ -554,7 +647,143 @@ function endDrag(event: PointerEvent): void {
     activeDrag.piece.releasePointerCapture(event.pointerId);
   }
 
+  placeDomPiece(piece, activeDrag);
   activeDrag = undefined;
+}
+
+function getImageLocalPoint(
+  piece: HTMLImageElement,
+  event: PointerEvent
+): Point {
+  const state = domPieceByElement.get(piece);
+  const rect = piece.getBoundingClientRect();
+
+  return {
+    x:
+      ((event.clientX - rect.left) / rect.width) *
+      (state?.piece.containerWidth ?? piece.width),
+    y:
+      ((event.clientY - rect.top) / rect.height) *
+      (state?.piece.containerHeight ?? piece.height),
+  };
+}
+
+function placeDomPiece(element: HTMLImageElement, drag: DragState): void {
+  const state = domPieceByElement.get(element);
+
+  if (!state) {
+    return;
+  }
+
+  if (!isPointInBounds(getElementCenter(element), getBoardBounds())) {
+    state.zone = "tray";
+    return;
+  }
+
+  const placedPieces = getDomBoardPieces();
+  const moving = {
+    piece: state.piece,
+    position: getElementPosition(element),
+  };
+  const candidate = findPhysicalSnapCandidate({
+    board: getBoardBounds(),
+    moving,
+    targets: placedPieces,
+    tolerance: SNAP_TOLERANCE,
+  });
+  const position = candidate?.position ?? moving.position;
+  const ignorePieceIndexes = candidate?.target ? [candidate.target.piece.index] : [];
+
+  if (
+    canPlacePiece(
+      { piece: state.piece, position },
+      {
+        board: getBoardBounds(),
+        ignorePieceIndexes,
+        placedPieces,
+      }
+    )
+  ) {
+    state.zone = "board";
+    element.style.left = `${position.x}px`;
+    element.style.top = `${position.y}px`;
+  } else {
+    state.zone = drag.startZone;
+    element.style.left = `${drag.startPosition.x}px`;
+    element.style.top = `${drag.startPosition.y}px`;
+  }
+}
+
+function getDomBoardPieces(): PlacedPiece[] {
+  const placedPieces: PlacedPiece[] = [];
+
+  for (const element of container.querySelectorAll<HTMLImageElement>("img")) {
+    const state = domPieceByElement.get(element);
+
+    if (state?.zone === "board") {
+      placedPieces.push({
+        piece: state.piece,
+        position: getElementPosition(element),
+      });
+    }
+  }
+
+  return placedPieces;
+}
+
+function getElementPosition(element: HTMLElement): Point {
+  return {
+    x: parseFloat(element.style.left) || 0,
+    y: parseFloat(element.style.top) || 0,
+  };
+}
+
+function getElementCenter(element: HTMLElement): Point {
+  const position = getElementPosition(element);
+
+  return {
+    x: position.x + element.offsetWidth / 2,
+    y: position.y + element.offsetHeight / 2,
+  };
+}
+
+function getSpriteCenter(sprite: TextureSprite): Point {
+  return {
+    x: sprite.x + sprite.piece.containerWidth / 2,
+    y: sprite.y + sprite.piece.containerHeight / 2,
+  };
+}
+
+function getBoardBounds(): { x: number; y: number; width: number; height: number } {
+  return {
+    x: 0,
+    y: 0,
+    width: canvas.width,
+    height: canvas.height,
+  };
+}
+
+function getTrayBounds(): { x: number; y: number; width: number; height: number } {
+  return {
+    x: canvas.width + TRAY_GAP,
+    y: 0,
+    width: TRAY_WIDTH,
+    height: Math.max(canvas.height, 520),
+  };
+}
+
+function isPointInBounds(point: Point, bounds: {
+  height: number;
+  width: number;
+  x: number;
+  y: number;
+}): boolean {
+  return (
+    point.x >= bounds.x &&
+    point.x <= bounds.x + bounds.width &&
+    point.y >= bounds.y &&
+    point.y <= bounds.y + bounds.height
+  );
 }
 
 /**
@@ -570,6 +799,7 @@ function setStatus(message: string): void {
 function setGenerating(generating: boolean): void {
   isGenerating = generating;
   renderer.disabled = generating;
+  connectorStyle.disabled = generating;
   generateButton.disabled = generating || !currentImage;
   defaultPuzzle.disabled = generating;
   dynamicPuzzle.disabled = generating;
@@ -703,14 +933,15 @@ class TexturePreviewRenderer {
   setPieces(pieces: WebGPUPuzzlePiece[]): void {
     this.clear();
 
+    const trayBounds = getTrayBounds();
     this.sprites = pieces.map((piece) => {
       const { x, y } = random(
-        0,
-        0,
+        trayBounds.x,
+        trayBounds.y,
         piece.containerWidth,
         piece.containerHeight,
-        gpuCanvas.width,
-        gpuCanvas.height
+        trayBounds.width,
+        trayBounds.height
       );
       const uniformBuffer = this.device.createBuffer({
         size: 32,
@@ -724,7 +955,7 @@ class TexturePreviewRenderer {
           { binding: 2, resource: { buffer: uniformBuffer } },
         ],
       });
-      const sprite = { bindGroup, piece, uniformBuffer, x, y };
+      const sprite = { bindGroup, piece, uniformBuffer, x, y, zone: "tray" as const };
 
       this.writeSpriteUniform(sprite);
 
@@ -798,7 +1029,7 @@ class TexturePreviewRenderer {
     const pass = encoder.beginRenderPass({
       colorAttachments: [
         {
-          clearValue: { r: 0.55, g: 0.58, b: 0.63, a: 1 },
+          clearValue: { r: 0, g: 0, b: 0, a: 0 },
           loadOp: "clear",
           storeOp: "store",
           view: this.context.getCurrentTexture().createView(),
@@ -864,6 +1095,9 @@ class TexturePreviewRenderer {
         offsetY: point.y - sprite.y,
         pointerId: event.pointerId,
         sprite,
+        startX: sprite.x,
+        startY: sprite.y,
+        startZone: sprite.zone,
       };
       this.render();
       return;
@@ -909,10 +1143,13 @@ class TexturePreviewRenderer {
       return;
     }
 
+    const sprite = this.activeDrag.sprite;
+
     if (gpuCanvas.hasPointerCapture(event.pointerId)) {
       gpuCanvas.releasePointerCapture(event.pointerId);
     }
 
+    this.placeSprite(sprite, this.activeDrag);
     this.activeDrag = undefined;
   }
 
@@ -932,19 +1169,77 @@ class TexturePreviewRenderer {
   }
 
   /**
-   * Returns whether a point is inside a sprite rectangle.
+   * Returns whether a point is inside a sprite outline.
    *
    * @param sprite - Sprite.
    * @param point - Point.
    * @returns True when the point is inside.
    */
   private containsPoint(sprite: TextureSprite, point: Point): boolean {
-    return (
-      point.x >= sprite.x &&
-      point.x <= sprite.x + sprite.piece.containerWidth &&
-      point.y >= sprite.y &&
-      point.y <= sprite.y + sprite.piece.containerHeight
-    );
+    return hitTestPiece(sprite.piece, {
+      x: point.x - sprite.x,
+      y: point.y - sprite.y,
+    });
+  }
+
+  /**
+   * Places a texture sprite into the tray or board.
+   *
+   * @param sprite - Sprite to place.
+   * @param drag - Completed drag state.
+   * @returns Nothing.
+   */
+  private placeSprite(sprite: TextureSprite, drag: TextureDragState): void {
+    if (!isPointInBounds(getSpriteCenter(sprite), getBoardBounds())) {
+      sprite.zone = "tray";
+      this.render();
+      return;
+    }
+
+    const placedPieces = this.getPlacedPieces();
+    const candidate = findPhysicalSnapCandidate({
+      board: getBoardBounds(),
+      moving: {
+        piece: sprite.piece,
+        position: { x: sprite.x, y: sprite.y },
+      },
+      targets: placedPieces,
+      tolerance: SNAP_TOLERANCE,
+    });
+    const position = candidate?.position ?? { x: sprite.x, y: sprite.y };
+    const ignorePieceIndexes = candidate?.target ? [candidate.target.piece.index] : [];
+
+    if (
+      canPlacePiece(
+        { piece: sprite.piece, position },
+        {
+          board: getBoardBounds(),
+          ignorePieceIndexes,
+          placedPieces,
+        }
+      )
+    ) {
+      sprite.zone = "board";
+      sprite.x = position.x;
+      sprite.y = position.y;
+      this.writeSpriteUniform(sprite);
+      this.render();
+    } else {
+      sprite.zone = drag.startZone;
+      sprite.x = drag.startX;
+      sprite.y = drag.startY;
+      this.writeSpriteUniform(sprite);
+      this.render();
+    }
+  }
+
+  private getPlacedPieces(): PlacedPiece[] {
+    return this.sprites
+      .filter((sprite) => sprite.zone === "board")
+      .map((sprite) => ({
+        piece: sprite.piece,
+        position: { x: sprite.x, y: sprite.y },
+      }));
   }
 }
 

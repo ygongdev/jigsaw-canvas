@@ -17,6 +17,17 @@
         </select>
       </div>
 
+      <div class="field">
+        <label for="connector-style">Connector</label>
+        <select id="connector-style">
+          <option value="classic">Classic</option>
+          <option value="round">Round</option>
+          <option value="wave">Wave</option>
+          <option value="angular">Angular</option>
+          <option value="dovetail">Dovetail</option>
+        </select>
+      </div>
+
       <div class="field range-field">
         <label id="rows-value" for="rows">Rows: 8</label>
         <input id="rows" type="range" min="1" max="50" step="1" value="8" />
@@ -32,7 +43,7 @@
         <button id="default" type="button">Default Image</button>
         <label class="file-action" for="dynamic">Image File</label>
         <input id="dynamic" type="file" accept="image/*" />
-        <button id="hide" type="button" data-hidden="false">Hide Source</button>
+        <button id="hide" type="button" data-hidden="false">Source</button>
         <button id="clear" type="button">Clear</button>
       </div>
 
@@ -62,11 +73,13 @@
     </section>
 
     <section class="workspace" aria-label="Puzzle workspace">
-      <div class="source-panel">
-        <canvas id="original"></canvas>
-      </div>
       <div id="playground" class="playground">
-        <div id="result"></div>
+        <div id="solve-board" class="solve-board"></div>
+        <div id="piece-tray" class="piece-tray"></div>
+        <div id="source-preview" class="source-preview">
+          <canvas id="original"></canvas>
+        </div>
+        <div id="result" class="piece-layer"></div>
         <canvas id="gpu-result"></canvas>
       </div>
     </section>

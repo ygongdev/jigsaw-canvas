@@ -54,7 +54,7 @@ select:disabled {
 
 .toolbar {
   display: grid;
-  grid-template-columns: minmax(190px, 240px) minmax(160px, 1fr) minmax(160px, 1fr) auto;
+  grid-template-columns: minmax(190px, 240px) minmax(150px, 190px) minmax(160px, 1fr) minmax(160px, 1fr) auto;
   gap: 12px;
   align-items: end;
   padding: 14px 16px;
@@ -137,26 +137,17 @@ select:disabled {
 .workspace {
   min-width: 0;
   min-height: 0;
-  display: grid;
-  grid-template-columns: minmax(240px, 34vw) 1fr;
-  gap: 16px;
+  display: block;
   padding: 16px;
   overflow: auto;
 }
 
-.source-panel,
 .playground {
   min-width: 0;
   min-height: 280px;
   border: 1px solid #d1d7e0;
-  background: #8d95a1;
-  overflow: auto;
-}
-
-.source-panel {
-  display: flex;
-  align-items: flex-start;
-  justify-content: flex-start;
+  background: #7f8793;
+  overflow: hidden;
 }
 
 #original {
@@ -170,6 +161,54 @@ select:disabled {
   touch-action: none;
 }
 
+.solve-board,
+.piece-tray {
+  position: absolute;
+  top: 0;
+  border: 1px solid rgba(255, 255, 255, 0.58);
+  background: rgba(255, 255, 255, 0.16);
+}
+
+.solve-board {
+  left: 0;
+}
+
+.piece-tray {
+  background:
+    linear-gradient(rgba(255, 255, 255, 0.2), rgba(255, 255, 255, 0.2)),
+    repeating-linear-gradient(
+      45deg,
+      rgba(255, 255, 255, 0.14) 0,
+      rgba(255, 255, 255, 0.14) 10px,
+      rgba(32, 36, 44, 0.08) 10px,
+      rgba(32, 36, 44, 0.08) 20px
+    );
+}
+
+.source-preview {
+  position: absolute;
+  top: 12px;
+  left: 12px;
+  z-index: 20;
+  max-width: min(420px, calc(100% - 24px));
+  max-height: calc(100% - 24px);
+  border: 1px solid rgba(255, 255, 255, 0.72);
+  background: rgba(255, 255, 255, 0.86);
+  box-shadow: 0 16px 40px rgba(18, 24, 33, 0.24);
+  opacity: 0;
+  overflow: hidden;
+  pointer-events: none;
+  transform: translateY(-4px);
+  transition:
+    opacity 140ms ease,
+    transform 140ms ease;
+}
+
+.source-preview.visible {
+  opacity: 1;
+  transform: translateY(0);
+}
+
 #result,
 #gpu-result {
   display: none;
@@ -181,10 +220,15 @@ select:disabled {
 }
 
 #result {
-  position: relative;
+  position: absolute;
+  inset: 0;
+  z-index: 5;
 }
 
 #gpu-result {
+  position: absolute;
+  inset: 0;
+  z-index: 5;
   touch-action: none;
 }
 
@@ -194,8 +238,7 @@ select:disabled {
 }
 
 @media (max-width: 860px) {
-  .toolbar,
-  .workspace {
+  .toolbar {
     grid-template-columns: 1fr;
   }
 

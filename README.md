@@ -39,7 +39,7 @@ const layout = createPuzzleLayout({
 });
 ```
 
-`createPuzzleLayout` returns deterministic, DOM-free puzzle geometry. It validates that `rows` and `columns` are positive integers and that image dimensions are positive finite numbers. Boundary edges are straight, adjacent pieces receive complementary tab/slot edges, and each piece includes transparent `margins` so protruding tabs are not clipped.
+`createPuzzleLayout` returns deterministic, DOM-free puzzle geometry. It validates that `rows` and `columns` are positive integers and that image dimensions are positive finite numbers. Boundary edges are straight, adjacent pieces receive complementary connector edges, and each piece includes renderer-neutral `outline` geometry so Canvas2D and WebGPU draw the same piece boundary.
 
 ### Shared Inputs
 
@@ -51,6 +51,7 @@ type PuzzleImage = CanvasImageSource & {
 
 type GeneratePuzzleOptions = {
   random?: () => number;
+  connectorStyle?: ConnectorStyle | ConnectorStyle[];
   imageType?: string;
   imageQuality?: number;
   imageOutput?: "blob-url" | "data-url";
@@ -64,11 +65,42 @@ type PuzzleGenerationProgress = {
   progress: number;
   totalPieces: number;
 };
+
+type ConnectorStyle = "classic" | "round" | "wave" | "angular" | "dovetail";
 ```
 
-`random` controls tab/slot generation and is useful for reproducible puzzles. `imageType` and `imageQuality` are passed to browser image encoding. `imageOutput` defaults to `"blob-url"` because blob URLs avoid base64-heavy `toDataURL()` output.
+`random` controls connector polarity and any per-edge style choices, which is useful for reproducible puzzles. `connectorStyle` defaults to `"classic"` for the current tab/slot design. Passing an array chooses one style per shared interior edge. `imageType` and `imageQuality` are passed to browser image encoding. `imageOutput` defaults to `"blob-url"` because blob URLs avoid base64-heavy `toDataURL()` output.
 
 `onProgress` is called once per generated piece. `progress` is a `0..1` ratio, `elapsedMs` is measured from the start of the generation call, and `pieceIndex` is zero-based. Canvas2D and WebGPU image-source renderers report after each piece has been encoded. `generatePuzzleWebGPUTextures` reports after each GPU texture has been rendered.
+
+### Layout Model
+
+The generator now separates topology, connector assignment, and outline generation. The first topology is still the rectangular row/column grid, but renderers consume explicit piece outlines so future irregular topologies can reuse the same Canvas2D and WebGPU paths.
+
+```ts
+type PieceEdge = {
+  polarity: "straight" | "out" | "in";
+  style?: ConnectorStyle;
+  sharedEdgeId?: string;
+};
+
+type BoundarySegment =
+  | { kind: "line"; start: Point; end: Point }
+  | { kind: "cubic"; start: Point; cp1: Point; cp2: Point; end: Point };
+
+type PuzzlePieceLayout = {
+  index: number;
+  grid?: { row: number; col: number };
+  edges: Record<"TOP" | "RIGHT" | "BOTTOM" | "LEFT", PieceEdge>;
+  outline: BoundarySegment[];
+  sourceBounds: { x: number; y: number; width: number; height: number };
+  margins: PieceMargins;
+  containerWidth: number;
+  containerHeight: number;
+  width: number;
+  height: number;
+};
+```
 
 ### Canvas2D Renderer
 
@@ -82,17 +114,12 @@ const samePieces = await generatePuzzleCanvas2D(image, rows, columns, options);
 ```ts
 type RenderedPuzzlePiece = {
   imageSrc: string;
-  shape: PieceShape;
-  margins: PieceMargins;
-  containerWidth: number;
-  containerHeight: number;
-  width: number;
-  height: number;
-  row: number;
-  col: number;
+  edges: Record<"TOP" | "RIGHT" | "BOTTOM" | "LEFT", PieceEdge>;
+  outline: BoundarySegment[];
+  sourceBounds: { x: number; y: number; width: number; height: number };
   widthPercentage: number;
   heightPercentage: number;
-};
+} & PuzzlePieceLayout;
 ```
 
 Use `piece.imageSrc` as an `<img src>` value. If the default blob URL output is used, release sources when finished:
@@ -136,21 +163,29 @@ if (isWebGPUSupported()) {
 type WebGPUPuzzlePiece = {
   texture: GPUTexture;
   textureView: GPUTextureView;
-  shape: PieceShape;
-  margins: PieceMargins;
-  containerWidth: number;
-  containerHeight: number;
-  width: number;
-  height: number;
-  row: number;
-  col: number;
   widthPercentage: number;
   heightPercentage: number;
   destroy(): void;
-};
+} & PuzzlePieceLayout;
 ```
 
 Use this API for a custom WebGPU render loop where pieces stay on the GPU for transforms, dragging, animation, or composition. Call `piece.destroy()` when a texture piece is no longer needed.
+
+### Placement Geometry
+
+The library also exposes pure geometry helpers for outline hit testing and physical-fit snapping. These helpers do not require DOM, Canvas2D, or WebGPU.
+
+```js
+const hit = hitTestPiece(piece, { x, y });
+const snap = findPhysicalSnapCandidate({
+  moving,
+  targets,
+  board,
+  tolerance: 24,
+});
+```
+
+`hitTestPiece` samples `piece.outline`, checks bounds first, then runs point-in-polygon testing. `findPhysicalSnapCandidate` looks for physically compatible edges by polarity and connector style, not by `sharedEdgeId`, so a wrong piece can still snap when it physically fits. Use `canPlacePiece` to reject placements outside the board or overlapping other pieces.
 
 ### Renderer Choice
 
