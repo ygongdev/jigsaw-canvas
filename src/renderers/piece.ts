@@ -1,6 +1,7 @@
 import type {
+  BoundarySegment,
+  PieceEdges,
   PieceMargins,
-  PieceShape,
   PuzzlePieceLayout,
   RenderedPuzzlePiece,
 } from "../core/types.js";
@@ -16,12 +17,48 @@ export class RenderedPuzzlePieceData implements RenderedPuzzlePiece {
   constructor(private readonly layout: PuzzlePieceLayout) {}
 
   /**
-   * Returns the piece edge shape map.
+   * Returns the piece index.
    *
-   * @returns Piece edge shape map.
+   * @returns Piece index.
    */
-  get shape(): PieceShape {
-    return this.layout.shape;
+  get index(): number {
+    return this.layout.index;
+  }
+
+  /**
+   * Returns the grid position when available.
+   *
+   * @returns Grid position.
+   */
+  get grid(): { row: number; col: number } | undefined {
+    return this.layout.grid;
+  }
+
+  /**
+   * Returns the piece edge metadata map.
+   *
+   * @returns Piece edge metadata map.
+   */
+  get edges(): PieceEdges {
+    return this.layout.edges;
+  }
+
+  /**
+   * Returns the renderer-neutral piece outline.
+   *
+   * @returns Piece outline.
+   */
+  get outline(): BoundarySegment[] {
+    return this.layout.outline;
+  }
+
+  /**
+   * Returns source image bounds for this piece.
+   *
+   * @returns Source bounds.
+   */
+  get sourceBounds(): { x: number; y: number; width: number; height: number } {
+    return this.layout.sourceBounds;
   }
 
   /**

@@ -1,4 +1,4 @@
-import type { RandomSource } from "../core/edges.js";
+import type { ConnectorStyleOption, RandomSource } from "../core/edges.js";
 
 export type PuzzleImageOutput = "blob-url" | "data-url";
 
@@ -11,6 +11,7 @@ export interface PuzzleGenerationProgress {
 }
 
 export interface GeneratePuzzleOptions {
+  connectorStyle?: ConnectorStyleOption;
   imageQuality?: number;
   imageOutput?: PuzzleImageOutput;
   imageType?: string;

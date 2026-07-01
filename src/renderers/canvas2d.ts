@@ -2,7 +2,7 @@ import { createPuzzleLayout } from "../core/layout.js";
 import { createPiecePath } from "./canvas2d/paths.js";
 import { encodeCanvasImageSource } from "./encoding.js";
 import { RenderedPuzzlePieceData } from "./piece.js";
-import { createProgressReporter } from "./progress.js";
+import { createProgressReporter, yieldForProgressPaint } from "./progress.js";
 import type { PuzzleImage, RenderedPuzzlePiece } from "../core/types.js";
 import type { GeneratePuzzleOptions } from "./types.js";
 
@@ -29,6 +29,7 @@ export async function generatePuzzleCanvas2D(
   const layout = createPuzzleLayout({
     rows,
     columns,
+    connectorStyle: options.connectorStyle,
     imageWidth: img.width,
     imageHeight: img.height,
     random: options.random,
@@ -54,13 +55,14 @@ export async function generatePuzzleCanvas2D(
     newCanvasCtx.clip(path);
     newCanvasCtx.drawImage(
       img,
-      piece.margins.left - piece.col * piece.width,
-      piece.margins.top - piece.row * piece.height
+      -piece.sourceBounds.x,
+      -piece.sourceBounds.y
     );
 
     piece.imageSrc = await encodeCanvasImageSource(newCanvas, options);
     puzzlePieces.push(piece);
     reportProgress(index);
+    await yieldForProgressPaint(options);
   }
 
   return puzzlePieces;

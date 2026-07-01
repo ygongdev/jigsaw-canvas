@@ -1,71 +1,115 @@
 import {
-  JIGSAW_SHAPE,
-  type JigsawShapeValue,
-  type PieceShape,
+  JIGSAW_CONNECTOR_STYLE,
+  JIGSAW_EDGE_POLARITY,
+  type ConnectorStyle,
+  type PieceEdge,
+  type PieceEdges,
 } from "./types.js";
 
 export type RandomSource = () => number;
 
+export type ConnectorStyleOption = ConnectorStyle | ConnectorStyle[];
+
 /**
- * Creates edge shapes for one piece from its position and neighbors.
+ * Creates edge metadata for one piece from its position and neighbors.
  *
  * @param row - Piece row index.
  * @param col - Piece column index.
  * @param rows - Total puzzle rows.
  * @param columns - Total puzzle columns.
- * @param topNeighbor - Shape of the piece above.
- * @param leftNeighbor - Shape of the piece to the left.
+ * @param topNeighbor - Edges of the piece above.
+ * @param leftNeighbor - Edges of the piece to the left.
  * @param random - Random source for non-boundary edges.
- * @returns The edge shape map for the piece.
+ * @param connectorStyle - Connector style or style pool.
+ * @returns The edge map for the piece.
  */
-export function createPieceShape(
+export function createPieceEdges(
   row: number,
   col: number,
   rows: number,
   columns: number,
-  topNeighbor?: PieceShape,
-  leftNeighbor?: PieceShape,
-  random: RandomSource = Math.random
-): PieceShape {
+  topNeighbor?: PieceEdges,
+  leftNeighbor?: PieceEdges,
+  random: RandomSource = Math.random,
+  connectorStyle: ConnectorStyleOption = JIGSAW_CONNECTOR_STYLE.CLASSIC
+): PieceEdges {
   return {
     TOP:
       row === 0
-        ? JIGSAW_SHAPE.STRAIGHT
-        : oppositeEdge(topNeighbor?.BOTTOM ?? JIGSAW_SHAPE.SLOT),
+        ? createStraightEdge()
+        : oppositeEdge(topNeighbor?.BOTTOM ?? createInteriorEdge(random, connectorStyle)),
     RIGHT:
-      col === columns - 1 ? JIGSAW_SHAPE.STRAIGHT : createRandomEdge(random),
-    BOTTOM: row === rows - 1 ? JIGSAW_SHAPE.STRAIGHT : createRandomEdge(random),
+      col === columns - 1
+        ? createStraightEdge()
+        : createInteriorEdge(random, connectorStyle, `v:${row}:${col + 1}`),
+    BOTTOM:
+      row === rows - 1
+        ? createStraightEdge()
+        : createInteriorEdge(random, connectorStyle, `h:${row + 1}:${col}`),
     LEFT:
       col === 0
-        ? JIGSAW_SHAPE.STRAIGHT
-        : oppositeEdge(leftNeighbor?.RIGHT ?? JIGSAW_SHAPE.SLOT),
+        ? createStraightEdge()
+        : oppositeEdge(leftNeighbor?.RIGHT ?? createInteriorEdge(random, connectorStyle)),
   };
 }
 
 /**
- * Returns the matching edge shape for the neighboring piece.
+ * Returns the matching edge metadata for the neighboring piece.
  *
- * @param edge - Edge shape to complement.
- * @returns The opposite edge shape.
+ * @param edge - Edge to complement.
+ * @returns The opposite edge.
  */
-export function oppositeEdge(edge: PieceShape[keyof PieceShape]): JigsawShapeValue {
-  if (edge === JIGSAW_SHAPE.TAB) {
-    return JIGSAW_SHAPE.SLOT;
+export function oppositeEdge(edge: PieceEdge): PieceEdge {
+  if (edge.polarity === JIGSAW_EDGE_POLARITY.OUT) {
+    return { ...edge, polarity: JIGSAW_EDGE_POLARITY.IN };
   }
 
-  if (edge === JIGSAW_SHAPE.SLOT) {
-    return JIGSAW_SHAPE.TAB;
+  if (edge.polarity === JIGSAW_EDGE_POLARITY.IN) {
+    return { ...edge, polarity: JIGSAW_EDGE_POLARITY.OUT };
   }
 
-  return JIGSAW_SHAPE.STRAIGHT;
+  return createStraightEdge(edge.sharedEdgeId);
 }
 
 /**
- * Picks a non-boundary edge shape.
+ * Picks a non-boundary edge.
  *
  * @param random - Random source.
- * @returns A tab or slot edge shape.
+ * @param connectorStyle - Connector style or style pool.
+ * @param sharedEdgeId - Shared edge identifier.
+ * @returns An interior edge.
  */
-export function createRandomEdge(random: RandomSource): JigsawShapeValue {
-  return random() < 0.5 ? JIGSAW_SHAPE.TAB : JIGSAW_SHAPE.SLOT;
+export function createInteriorEdge(
+  random: RandomSource,
+  connectorStyle: ConnectorStyleOption = JIGSAW_CONNECTOR_STYLE.CLASSIC,
+  sharedEdgeId?: string
+): PieceEdge {
+  return {
+    polarity:
+      random() < 0.5 ? JIGSAW_EDGE_POLARITY.OUT : JIGSAW_EDGE_POLARITY.IN,
+    sharedEdgeId,
+    style: pickConnectorStyle(random, connectorStyle),
+  };
+}
+
+function createStraightEdge(sharedEdgeId?: string): PieceEdge {
+  return {
+    polarity: JIGSAW_EDGE_POLARITY.STRAIGHT,
+    sharedEdgeId,
+  };
+}
+
+function pickConnectorStyle(
+  random: RandomSource,
+  connectorStyle: ConnectorStyleOption
+): ConnectorStyle {
+  if (!Array.isArray(connectorStyle)) {
+    return connectorStyle;
+  }
+
+  if (connectorStyle.length === 0) {
+    return JIGSAW_CONNECTOR_STYLE.CLASSIC;
+  }
+
+  return connectorStyle[Math.floor(random() * connectorStyle.length)];
 }

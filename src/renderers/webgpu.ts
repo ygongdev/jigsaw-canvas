@@ -1,11 +1,13 @@
 import { createPuzzleLayout } from "../core/layout.js";
 import { RenderedPuzzlePieceData } from "./piece.js";
-import { createPieceOutlinePoints, type Point } from "./outline.js";
+import { createPieceOutlinePoints } from "./outline.js";
 import { encodeCanvasImageSource } from "./encoding.js";
-import { createProgressReporter } from "./progress.js";
+import { createProgressReporter, yieldForProgressPaint } from "./progress.js";
 import type {
+  BoundarySegment,
+  PieceEdges,
   PieceMargins,
-  PieceShape,
+  Point,
   PuzzleImage,
   PuzzlePieceLayout,
   RenderedPuzzlePiece,
@@ -65,12 +67,48 @@ class WebGPUPuzzlePieceData implements WebGPUPuzzlePiece {
   }
 
   /**
-   * Returns the piece edge shape map.
+   * Returns the piece index.
    *
-   * @returns Piece edge shape map.
+   * @returns Piece index.
    */
-  get shape(): PieceShape {
-    return this.layout.shape;
+  get index(): number {
+    return this.layout.index;
+  }
+
+  /**
+   * Returns the grid position when available.
+   *
+   * @returns Grid position.
+   */
+  get grid(): { row: number; col: number } | undefined {
+    return this.layout.grid;
+  }
+
+  /**
+   * Returns the piece edge metadata map.
+   *
+   * @returns Piece edge metadata map.
+   */
+  get edges(): PieceEdges {
+    return this.layout.edges;
+  }
+
+  /**
+   * Returns the renderer-neutral piece outline.
+   *
+   * @returns Piece outline.
+   */
+  get outline(): BoundarySegment[] {
+    return this.layout.outline;
+  }
+
+  /**
+   * Returns source image bounds for this piece.
+   *
+   * @returns Source bounds.
+   */
+  get sourceBounds(): { x: number; y: number; width: number; height: number } {
+    return this.layout.sourceBounds;
   }
 
   /**
@@ -205,6 +243,7 @@ export async function generatePuzzleWebGPU(
   const layout = createPuzzleLayout({
     rows,
     columns,
+    connectorStyle: options.connectorStyle,
     imageWidth: img.width,
     imageHeight: img.height,
     random: options.random,
@@ -233,6 +272,7 @@ export async function generatePuzzleWebGPU(
   for (let index = 0; index < puzzlePieces.length; index += 1) {
     puzzlePieces[index].imageSrc = await encodeImageData(imageData[index], options);
     reportProgress(index);
+    await yieldForProgressPaint(options);
   }
 
   sourceTexture.destroy();
@@ -263,6 +303,7 @@ export async function generatePuzzleWebGPUTextures(
   const layout = createPuzzleLayout({
     rows,
     columns,
+    connectorStyle: options.connectorStyle,
     imageWidth: img.width,
     imageHeight: img.height,
     random: options.random,
@@ -292,6 +333,7 @@ export async function generatePuzzleWebGPUTextures(
 
     puzzlePieces.push(new WebGPUPuzzlePieceData(layoutPiece, outputTexture));
     reportProgress(index);
+    await yieldForProgressPaint(options);
   }
 
   sourceTexture.destroy();
@@ -659,18 +701,14 @@ function createVertexBuffer(
   imageWidth: number,
   imageHeight: number
 ): { buffer: GPUBuffer; vertexCount: number } {
-  const sourceOffset = {
-    x: piece.margins.left - piece.col * piece.width,
-    y: piece.margins.top - piece.row * piece.height,
-  };
   const triangles = triangulatePolygon(createPieceOutlinePoints(piece));
   const data = new Float32Array(triangles.length * 4);
 
   triangles.forEach((point, index) => {
     data[index * 4] = (point.x / width) * 2 - 1;
     data[index * 4 + 1] = 1 - (point.y / height) * 2;
-    data[index * 4 + 2] = (point.x - sourceOffset.x) / imageWidth;
-    data[index * 4 + 3] = (point.y - sourceOffset.y) / imageHeight;
+    data[index * 4 + 2] = (point.x + piece.sourceBounds.x) / imageWidth;
+    data[index * 4 + 3] = (point.y + piece.sourceBounds.y) / imageHeight;
   });
 
   const buffer = device.createBuffer({
