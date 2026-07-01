@@ -1,9 +1,13 @@
 import assert from "node:assert/strict";
 import { describe, test } from "node:test";
 import {
+  canPlacePiece,
   createPuzzleLayout,
+  findPhysicalSnapCandidate,
   generatePuzzleCanvas2D,
-  JIGSAW_SHAPE,
+  hitTestPiece,
+  JIGSAW_CONNECTOR_STYLE,
+  JIGSAW_EDGE_POLARITY,
 } from "../dist/index.js";
 
 const DEFAULT_LAYOUT_OPTIONS = Object.freeze({
@@ -59,19 +63,19 @@ function pieceAt(layout, row, col) {
 /**
  * Returns the expected neighboring edge shape.
  *
- * @param {string} edge - Edge shape.
+ * @param {string} polarity - Edge polarity.
  * @returns {string} Complementary edge shape.
  */
-function opposite(edge) {
-  if (edge === JIGSAW_SHAPE.TAB) {
-    return JIGSAW_SHAPE.SLOT;
+function opposite(polarity) {
+  if (polarity === JIGSAW_EDGE_POLARITY.OUT) {
+    return JIGSAW_EDGE_POLARITY.IN;
   }
 
-  if (edge === JIGSAW_SHAPE.SLOT) {
-    return JIGSAW_SHAPE.TAB;
+  if (polarity === JIGSAW_EDGE_POLARITY.IN) {
+    return JIGSAW_EDGE_POLARITY.OUT;
   }
 
-  return JIGSAW_SHAPE.STRAIGHT;
+  return JIGSAW_EDGE_POLARITY.STRAIGHT;
 }
 
 /**
@@ -115,19 +119,19 @@ function assertContainersIncludeMargins(layout) {
 function assertBoundaryEdgesStraight(layout) {
   for (const piece of layout.pieces) {
     if (piece.row === 0) {
-      assert.equal(piece.shape.TOP, JIGSAW_SHAPE.STRAIGHT);
+      assert.equal(piece.edges.TOP.polarity, JIGSAW_EDGE_POLARITY.STRAIGHT);
     }
 
     if (piece.row === layout.rows - 1) {
-      assert.equal(piece.shape.BOTTOM, JIGSAW_SHAPE.STRAIGHT);
+      assert.equal(piece.edges.BOTTOM.polarity, JIGSAW_EDGE_POLARITY.STRAIGHT);
     }
 
     if (piece.col === 0) {
-      assert.equal(piece.shape.LEFT, JIGSAW_SHAPE.STRAIGHT);
+      assert.equal(piece.edges.LEFT.polarity, JIGSAW_EDGE_POLARITY.STRAIGHT);
     }
 
     if (piece.col === layout.columns - 1) {
-      assert.equal(piece.shape.RIGHT, JIGSAW_SHAPE.STRAIGHT);
+      assert.equal(piece.edges.RIGHT.polarity, JIGSAW_EDGE_POLARITY.STRAIGHT);
     }
   }
 }
@@ -145,12 +149,57 @@ function assertAdjacentEdgesComplement(layout) {
 
       if (col < layout.columns - 1) {
         const rightNeighbor = pieceAt(layout, row, col + 1);
-        assert.equal(rightNeighbor.shape.LEFT, opposite(piece.shape.RIGHT));
+        assert.equal(
+          rightNeighbor.edges.LEFT.polarity,
+          opposite(piece.edges.RIGHT.polarity)
+        );
+        assert.equal(
+          rightNeighbor.edges.LEFT.sharedEdgeId,
+          piece.edges.RIGHT.sharedEdgeId
+        );
+        assert.equal(rightNeighbor.edges.LEFT.style, piece.edges.RIGHT.style);
       }
 
       if (row < layout.rows - 1) {
         const bottomNeighbor = pieceAt(layout, row + 1, col);
-        assert.equal(bottomNeighbor.shape.TOP, opposite(piece.shape.BOTTOM));
+        assert.equal(
+          bottomNeighbor.edges.TOP.polarity,
+          opposite(piece.edges.BOTTOM.polarity)
+        );
+        assert.equal(
+          bottomNeighbor.edges.TOP.sharedEdgeId,
+          piece.edges.BOTTOM.sharedEdgeId
+        );
+        assert.equal(bottomNeighbor.edges.TOP.style, piece.edges.BOTTOM.style);
+      }
+    }
+  }
+}
+
+/**
+ * Asserts all piece outlines are closed and finite.
+ *
+ * @param {import("../dist/index.js").PuzzleLayout} layout - Puzzle layout.
+ * @returns {void}
+ */
+function assertClosedFiniteOutlines(layout) {
+  for (const piece of layout.pieces) {
+    assert.ok(piece.outline.length > 0);
+
+    const first = piece.outline[0];
+    const last = piece.outline.at(-1);
+
+    assert.deepEqual(last?.end, first.start);
+
+    for (const segment of piece.outline) {
+      const points =
+        segment.kind === "line"
+          ? [segment.start, segment.end]
+          : [segment.start, segment.cp1, segment.cp2, segment.end];
+
+      for (const point of points) {
+        assert.equal(Number.isFinite(point.x), true);
+        assert.equal(Number.isFinite(point.y), true);
       }
     }
   }
@@ -283,10 +332,16 @@ describe("createPuzzleLayout", () => {
     });
     const topLeft = pieceAt(layout, 0, 0);
 
-    assert.equal(topLeft.shape.RIGHT, JIGSAW_SHAPE.TAB);
-    assert.equal(topLeft.shape.BOTTOM, JIGSAW_SHAPE.SLOT);
-    assert.equal(pieceAt(layout, 0, 1).shape.LEFT, JIGSAW_SHAPE.SLOT);
-    assert.equal(pieceAt(layout, 1, 0).shape.TOP, JIGSAW_SHAPE.TAB);
+    assert.equal(topLeft.edges.RIGHT.polarity, JIGSAW_EDGE_POLARITY.OUT);
+    assert.equal(topLeft.edges.BOTTOM.polarity, JIGSAW_EDGE_POLARITY.IN);
+    assert.equal(pieceAt(layout, 0, 1).edges.LEFT.polarity, JIGSAW_EDGE_POLARITY.IN);
+    assert.equal(pieceAt(layout, 1, 0).edges.TOP.polarity, JIGSAW_EDGE_POLARITY.OUT);
+  });
+
+  test("creates closed finite outlines for every connector style", () => {
+    for (const connectorStyle of Object.values(JIGSAW_CONNECTOR_STYLE)) {
+      assertClosedFiniteOutlines(createLayout({ connectorStyle }));
+    }
   });
 
   test("rejects invalid dimensions", () => {
@@ -363,5 +418,138 @@ describe("generatePuzzleCanvas2D", () => {
     } finally {
       cleanup();
     }
+  });
+});
+
+describe("placement geometry", () => {
+  test("hit tests points against the piece outline", () => {
+    const layout = createLayout({
+      rows: 2,
+      columns: 2,
+      imageWidth: 400,
+      imageHeight: 400,
+      random: createRandomSource([0.25]),
+    });
+    const piece = pieceAt(layout, 0, 0);
+
+    assert.equal(hitTestPiece(piece, { x: 100, y: 100 }), true);
+    assert.equal(hitTestPiece(piece, { x: piece.containerWidth + 5, y: 100 }), false);
+  });
+
+  test("finds physical snaps without requiring matching shared edge ids", () => {
+    const layout = createLayout({
+      rows: 2,
+      columns: 2,
+      imageWidth: 400,
+      imageHeight: 400,
+      random: createRandomSource([0.25]),
+    });
+    const target = pieceAt(layout, 0, 0);
+    const originalMoving = pieceAt(layout, 0, 1);
+    const moving = {
+      ...originalMoving,
+      edges: {
+        ...originalMoving.edges,
+        LEFT: {
+          ...originalMoving.edges.LEFT,
+          sharedEdgeId: "different-edge",
+        },
+      },
+    };
+    const candidate = findPhysicalSnapCandidate({
+      board: { x: -1000, y: -1000, width: 2000, height: 2000 },
+      moving: { piece: moving, position: { x: 150, y: 8 } },
+      targets: [{ piece: target, position: { x: 0, y: 0 } }],
+      tolerance: 32,
+    });
+
+    assert.ok(candidate);
+    assert.equal(candidate.kind, "piece");
+    assert.equal(candidate.position.x, 160);
+    assert.equal(candidate.position.y, 0);
+  });
+
+  test("prefers compatible piece snaps over closer boundary snaps", () => {
+    const layout = createLayout({
+      rows: 2,
+      columns: 2,
+      imageWidth: 400,
+      imageHeight: 400,
+      random: createRandomSource([0.25]),
+    });
+    const target = pieceAt(layout, 0, 0);
+    const moving = pieceAt(layout, 0, 1);
+    const candidate = findPhysicalSnapCandidate({
+      board: { x: 0, y: 0, width: 400, height: 400 },
+      moving: { piece: moving, position: { x: 150, y: 8 } },
+      targets: [{ piece: target, position: { x: 0, y: 0 } }],
+      tolerance: 32,
+    });
+
+    assert.ok(candidate);
+    assert.equal(candidate.kind, "piece");
+    assert.equal(candidate.edgeName, "LEFT");
+    assert.equal(candidate.position.x, 160);
+    assert.equal(candidate.position.y, 0);
+  });
+
+  test("snaps straight edges to board boundaries", () => {
+    const layout = createLayout({
+      rows: 2,
+      columns: 2,
+      imageWidth: 400,
+      imageHeight: 400,
+      random: createRandomSource([0.25]),
+    });
+    const piece = pieceAt(layout, 0, 0);
+    const candidate = findPhysicalSnapCandidate({
+      board: { x: 0, y: 0, width: 400, height: 400 },
+      moving: { piece, position: { x: 12, y: 7 } },
+      targets: [],
+      tolerance: 16,
+    });
+
+    assert.ok(candidate);
+    assert.equal(candidate.kind, "boundary");
+    assert.equal(candidate.position.y, 0);
+  });
+
+  test("validates snapped placement against overlap and board bounds", () => {
+    const layout = createLayout({
+      rows: 2,
+      columns: 2,
+      imageWidth: 400,
+      imageHeight: 400,
+      random: createRandomSource([0.25]),
+    });
+    const target = pieceAt(layout, 0, 0);
+    const moving = pieceAt(layout, 0, 1);
+    const board = { x: 0, y: 0, width: 400, height: 400 };
+
+    assert.equal(
+      canPlacePiece(
+        { piece: moving, position: { x: 0, y: 0 } },
+        { board, placedPieces: [{ piece: target, position: { x: 0, y: 0 } }] }
+      ),
+      false
+    );
+    assert.equal(
+      canPlacePiece(
+        { piece: moving, position: { x: 160, y: 0 } },
+        {
+          board,
+          ignorePieceIndexes: [target.index],
+          placedPieces: [{ piece: target, position: { x: 0, y: 0 } }],
+        }
+      ),
+      true
+    );
+    assert.equal(
+      canPlacePiece(
+        { piece: moving, position: { x: 380, y: 0 } },
+        { board, placedPieces: [] }
+      ),
+      false
+    );
   });
 });
